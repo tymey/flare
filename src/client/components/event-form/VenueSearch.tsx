@@ -62,14 +62,14 @@ function VenueSearch({ handleVenueSelect }) {
     const handleVenueSearch = async (searchTerm) => {
         try {
             setVenueSearch(searchTerm);
-            if (!geoLocation) {
-                return;
-            }
+            // if (!geoLocation) {
+            //     return;
+            // }
 
             const params = {
                 searchInput: searchTerm,
-                latitude: geoLocation.latitude,
-                longitude: geoLocation.longitude
+                // latitude: geoLocation.latitude,
+                // longitude: geoLocation.longitude
             };
 
             const response = await axios.get('/api/event/search', { params });
@@ -98,10 +98,10 @@ function VenueSearch({ handleVenueSelect }) {
                 // console.log('Using venue from database with id:', venue.id);
                 await handleVenueSelect(venue);
             } 
-            else if (venue.fsq_id) {
+            else if (venue.place_id) {
                 // console.log('Fetching venue details for fsq_id:', venue.fsq_id);
                 try {
-                    const response = await axios.get(`/api/event/venue/${venue.fsq_id}`);
+                    const response = await axios.get(`/api/event/venue/${venue.place_id}`);
                     // console.log('API response:', response.data);
                     await handleVenueSelect(response.data);
                 } catch (error) {
@@ -232,7 +232,7 @@ function VenueSearch({ handleVenueSelect }) {
                                         >
                                             <div className="font-medium text-white">{venue.name}</div>
                                             <div className="text-sm text-gray-300">
-                                                {venue.street_address}, {venue.city_name}, {venue.state_name}
+                                                {venue.street_address}
                                             </div>
                                         </div>
                                     ))}

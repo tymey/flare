@@ -41,36 +41,28 @@ eventRouter.get('/search', async (req: any, res: Response): Promise<void> => {
 
         // FSQ API CALL - retrieves venues for autocomplete results
         const searchParams = new URLSearchParams({
-            query: searchInput,
-            limit: '20',
-            types: 'place',
+            input: searchInput ? searchInput : "The",
+            key: `${process.env.GOOGLE_PLACES_API_KEY}`
         });
 
         if (latitude && longitude) {
-            searchParams.append('ll', `${latitude},${longitude}`);
+            searchParams.append('location', `${latitude},${longitude}`);
         }
         const response = await fetch(
-            `https://api.foursquare.com/v3/autocomplete?${searchParams}`,
-            {
-                headers: {
-                    Accept: 'application/json',
-                    Authorization: `${process.env.FOURSQUARE_API_KEY}`,
-                },
-            }
+            `https://maps.googleapis.com/maps/api/place/autocomplete/json?${searchParams}`
         );
 
         // api response data
         const data = await response.json();
 
-
         // map response obj send back only necessary data
-        const mappedData = data.results.map((result: any) => ({
-            name: result.place.name,
-            street_address: result.place.location.address,
-            zip_code: parseInt(result.place.location.postcode),
-            city_name: result.place.location.dma,
-            state_name: result.place.location.region,
-            fsq_id: result.place.fsq_id,
+        const mappedData = data.predictions.map((result: any) => ({
+            name: result.structured_formatting.main_text,
+            street_address: result.structured_formatting.secondary_text,
+            // zip_code: parseInt(result.place.location.postcode),
+            city_name: result.terms[2] ? result.terms[2].value : '',
+            state_name: result.terms[3] ? result.terms[3].value : '',
+            place_id: result.place_id,
         }));
         // combine both venue results
         const combinedResults = [...dbVenues, ...mappedData]
@@ -78,7 +70,7 @@ eventRouter.get('/search', async (req: any, res: Response): Promise<void> => {
         const uniqueResults = removeDuplicateVenues(combinedResults);
         res.json(uniqueResults);
     } catch (error: any) {
-        console.error('Error getting venue data from FSQ API')
+        console.error('Error getting venue data from FSQ API', error);
         res.sendStatus(500);
     }
 })
@@ -303,8 +295,8 @@ eventRouter.post('/venue/create', async (req: any, res: Response) => {
         }
 
         // get images and tags from both apis
-        const venueImages = getVenueImages(fsqVenueDetails, googleData ? [googleData] : []);
-        const venueTags = getVenueTags(fsqVenueDetails, googleData ? [googleData] : []);
+        const venueImages = getVenueImages(/* fsqVenueDetails, */ googleData ? [googleData] : []);
+        const venueTags = getVenueTags(/* fsqVenueDetails, */ googleData ? [googleData] : []);
 
         // combine all the venue data we got
         const enrichedVenue = {
@@ -361,20 +353,18 @@ eventRouter.post('/venue/create', async (req: any, res: Response) => {
 
 
 // this route gets called when user selects a venue from fsq search results
-eventRouter.get('/venue/:fsqId', async (req: any, res: any) => {
-    let fsqData;
-    let googlePlaceId = null;
+eventRouter.get('/venue/:googlePlaceId', async (req: any, res: any) => {
     let gData: GoogleData[] = [];
     try {
         // get the fsq id from url
-        const { fsqId } = req.params;
+        const { googlePlaceId } = req.params;
 
         // check if we already have this venue in our db
-        const hasFSQId = await Venue.findOne({ where: { fsq_id: fsqId } });
+        // const hasFSQId = await Venue.findOne({ where: { fsq_id: fsqId } });
 
 
         const existingVenue: any = await Venue.findOne({
-            where: { fsq_id: fsqId },
+            where: { google_place_id: googlePlaceId },
             include: [
                 { model: Venue_Tag, as: 'Venue_Tags' },
                 { model: Venue_Image, as: 'Venue_Images' }
@@ -402,51 +392,51 @@ eventRouter.get('/venue/:fsqId', async (req: any, res: any) => {
             });
         }
         // if venue isn't in our db, get it from fsq api
-        if (!hasFSQId) {
-            const response = await fetch(
-                `https://api.foursquare.com/v3/places/${fsqId}?fields=fsq_id,name,description,location,tel,website,tips,rating,hours,features,stats,price,photos,tastes,popularity,hours_popular,social_media,categories`, {
-                headers: {
-                    Accept: 'application/json',
-                    Authorization: `${process.env.FOURSQUARE_API_KEY}`,
-                },
-            }
-            );
-            fsqData = await response.json();
-        }
+        // if (!hasFSQId) {
+        //     const response = await fetch(
+        //         `https://api.foursquare.com/v3/places/${fsqId}?fields=fsq_id,name,description,location,tel,website,tips,rating,hours,features,stats,price,photos,tastes,popularity,hours_popular,social_media,categories`, {
+        //         headers: {
+        //             Accept: 'application/json',
+        //             Authorization: `${process.env.FOURSQUARE_API_KEY}`,
+        //         },
+        //     }
+        //     );
+        //     fsqData = await response.json();
+        // }
 
-        // check if we have a google place id for this venue
-        const hasGoogleId = await Venue.findOne({
-            where: {
-                fsq_id: fsqId,
-                google_place_id: {
-                    [Op.and]: [
-                        { [Op.ne]: null },
-                        { [Op.ne]: '' }
-                    ]
-                }
-            }
-        });
+        // // check if we have a google place id for this venue
+        // const hasGoogleId = await Venue.findOne({
+        //     where: {
+        //         fsq_id: fsqId,
+        //         google_place_id: {
+        //             [Op.and]: [
+        //                 { [Op.ne]: null },
+        //                 { [Op.ne]: '' }
+        //             ]
+        //         }
+        //     }
+        // });
 
-        // if no google data, try to get it
-        if (!hasGoogleId) {
-            // make sure we have enough info to search google
-            if (fsqData?.name && fsqData?.location?.formatted_address) {
-                try {
-                    // build search query for google
-                    const query = `"${fsqData.name}" "${fsqData.location.formatted_address}"`
-                    // get google place id
-                    googlePlaceId = await getGooglePlaceId(query);
-                    if (googlePlaceId) {
-                        // use apify to get more google data
-                        gData = await runApifyActor(googlePlaceId) as GoogleData[];
-                    }
-                } catch (error) {
-                    console.error('Error getting Google Place Data: ', error);
-                }
-            } else {
-                console.warn('Not enough data for Google Text Search query');
-            }
-        }
+        // // if no google data, try to get it
+        // if (!hasGoogleId) {
+        //     // make sure we have enough info to search google
+        //     if (fsqData?.name && fsqData?.location?.formatted_address) {
+        //         try {
+        //             // build search query for google
+        //             const query = `"${fsqData.name}" "${fsqData.location.formatted_address}"`
+        //             // get google place id
+        //             googlePlaceId = await getGooglePlaceId(query);
+        //             if (googlePlaceId) {
+        //                 // use apify to get more google data
+        //                 gData = await runApifyActor(googlePlaceId) as GoogleData[];
+        //             }
+        //         } catch (error) {
+        //             console.error('Error getting Google Place Data: ', error);
+        //         }
+        //     } else {
+        //         console.warn('Not enough data for Google Text Search query');
+        //     }
+        // }
         // if (fsqData && gData) {
         //     console.log('DATA BEGINS HERE');
         //     console.log('---------FSQ DATA')
@@ -468,27 +458,40 @@ eventRouter.get('/venue/:fsqId', async (req: any, res: any) => {
         // // @ts-ignore
         // console.log('DOG PARK: ', gData[0]?.additionalInfo?.Pets?.some(pet => pet?.['Dog park']));
 
+        gData = await runApifyActor(googlePlaceId) as GoogleData[];
+
+        const searchParams = new URLSearchParams({
+            place_id: googlePlaceId,
+            key: 'AIzaSyDNPSQ37dyK5nHAbh5llxirC3tBRDytyCU'
+        });
+
+        const venueResponse = await fetch(
+            `https://maps.googleapis.com/maps/api/place/details/json?${searchParams}`
+        );
+
+        const venueData = await venueResponse.json();
+
         // combine all the venue data we got
         const buildVenue: VenueType = {
             id: null,
-            name: fsqData?.name || gData?.[0]?.title || null,
-            description: gData?.[0]?.description || fsqData?.description || null,
-            category: gData?.[0]?.categoryName || fsqData?.categories[0]?.name || null,
-            street_address: gData?.[0]?.street || fsqData?.location?.address || null,
-            zip_code: fsqData?.location?.postcode || gData?.[0]?.postalCode || null,
-            city_name: fsqData?.location?.dma || gData?.[0]?.city || null,
-            state_name: formatState(fsqData, gData),
-            phone: formatPhoneNumber(fsqData, gData),
-            website: gData?.[0]?.website || fsqData?.website || null,
-            rating: getVenueRating(fsqData, gData),
-            total_reviews: getVenueReviewCount(fsqData, gData),
-            pricing: gData?.[0]?.price || convertFSQPrice(fsqData?.price) || null,
+            name: venueData.result.name || null,
+            description: venueData.result.editorial_summary ? venueData.result.editorial_summary.overview : null,
+            category: gData?.[0]?.categoryName || null,
+            street_address: venueData.formatted_address || null,
+            zip_code: +(venueData.result.address_components[7].long_name) || gData?.[0]?.postalCode || null,
+            city_name: venueData.result.address_components[3].long_name || gData?.[0]?.city || null,
+            state_name: venueData.result.address_components[5].short_name || null,
+            phone: venueData.result.formatted_phone_number || null,
+            website: venueData.result.website || gData?.[0]?.website || null,
+            rating: venueData.result.rating || null,
+            total_reviews: venueData.result.reviews.length || null,
+            pricing: gData?.[0]?.price || null,
             popularTime: getPopularTime(gData) || null,
             wheelchair_accessible: getVenueAccessibility(gData) || null,
-            serves_alcohol: getVenueAlcohol(fsqData, gData),
-            is_vegan_friendly: getVenueVeganFriendly(fsqData, gData),
-            is_dog_friendly: getVenueDogFriendly(fsqData, gData),
-            fsq_id: fsqId || null,
+            serves_alcohol: venueData.result.serves_beer || null,
+            is_vegan_friendly: getVenueVeganFriendly(gData),
+            is_dog_friendly: getVenueDogFriendly(gData),
+            fsq_id: null,
             google_place_id: googlePlaceId || null,
         };
         // console.log('BUILD VENUE: ', buildVenue);
@@ -515,7 +518,7 @@ eventRouter.get('/venue/:fsqId', async (req: any, res: any) => {
         }
 
         // get and save venue tags
-        const newTags = getVenueTags(fsqData, gData);
+        const newTags = getVenueTags(gData);
         if (newTags) {
             await Venue_Tag.bulkCreate(newTags.map((tag) => ({
                 ...tag,
@@ -524,12 +527,34 @@ eventRouter.get('/venue/:fsqId', async (req: any, res: any) => {
         }
 
         // get and save venue images
-        const newImages = getVenueImages(fsqData, gData);
+        const newImages = getVenueImages(gData);
+
         if (newImages) {
             await Venue_Image.bulkCreate(newImages.map(image => ({
                 ...image,
                 venue_id: newVenue.id
             })));
+        }
+
+        const googlePlacePhotos = [];
+
+        for (let photo of venueData.result.photos) {
+            const photoSearchParams = new URLSearchParams({
+                maxWidthPx: '400',
+                key: `${process.env.GOOGLE_PLACES_API_KEY}`
+            });
+
+            const response = await fetch(`https://places.googleapis.com/v1/places/${googlePlaceId}/photos/${photo.photo_reference}/media?${photoSearchParams}`);
+            
+            googlePlacePhotos.push({
+                path: response.url,
+                source: 'google',
+                venue_id: newVenue.id
+            });
+        }
+
+        if (googlePlacePhotos.length) {
+            await Venue_Image.bulkCreate(googlePlacePhotos);
         }
 
 

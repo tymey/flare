@@ -49,21 +49,25 @@ type SeedUserEvent = {
   EventId: number;
 };
 
+const now = Date.now();
+const hour = 1000 * 60 * 60;
+const thirtyMinutes = hour / 2;
+
 const notifications: SeedNotification[] = [
   { // #1: Karaoke Night
     title: null,
     message: `The upcoming event you're attending, Karaoke Night, starts soon in an hour. Hope to see you there.`,
-    send_time: new Date('2025-03-16T23:00:00.000Z'), // 03.16.25 => 6:00 PM
+    send_time: new Date(now), // 03.16.25 => 6:00 PM
   },
   { // #2: Op Spark Showcase After Party
     title: null,
     message: `The upcoming event you're attending, Op Spark Showcase After Party, starts soon in an hour. Hope to see you there.`,
-    send_time: new Date('2025-03-14T00:00:00.000Z'), // 03.13.25 => 7:00 PM
+    send_time: new Date(now + thirtyMinutes), // 03.13.25 => 7:00 PM
   },
   { // #3: Hack Night
     title: null,
     message: `The upcoming event you're attending, Hack Night, starts soon in an hour. Hope to see you there.`,
-    send_time: new Date('2025-03-18T23:00:00.000Z'), // 03.18.25 => 6:00 PM
+    send_time: new Date(now + (23 * hour)), // 03.18.25 => 6:00 PM
   },
 ];
 
@@ -71,8 +75,8 @@ const events: SeedEvent[] = [
   /* #1 Karaoke Night */
   {
     title: 'Karaoke Night',
-    start_time: new Date('2025-03-17T00:00:00.000Z'), // 03.16.25 => 7:00 PM
-    end_time: new Date('2025-03-17T03:00:00.000Z'), // 03.16.25 => 10:00 PM
+    start_time: new Date(now + hour), // 03.16.25 => 7:00 PM
+    end_time: new Date(now + (4 * hour)), // 03.16.25 => 10:00 PM
     description: `Let's get together for some karaoke before the start of the work week.`,
     venue_id: 1, // Kajun's Pub
     category_id: 1, // Casual Meetups
@@ -83,8 +87,8 @@ const events: SeedEvent[] = [
   /* #2 Op Spark Showcase After Party */
   {
     title: 'Op Spark Showcase After Party',
-    start_time: new Date('2025-03-14T01:00:00.000Z'), // 03.13.25 => 8:00 PM
-    end_time: new Date('2025-03-14T03:00:00.000Z'), // 03.13.25 => 10:00 PM
+    start_time: new Date(now + hour + thirtyMinutes), // 03.13.25 => 8:00 PM
+    end_time: new Date(now + (3 * hour) + thirtyMinutes), // 03.13.25 => 10:00 PM
     description: `Let's have a drink and celebrate Operation Spark's new graduates.`,
     venue_id: 2, // Anna's
     category_id: 1, // Casual Meetups
@@ -95,8 +99,8 @@ const events: SeedEvent[] = [
   /* #3 Hack Night */
   {
     title: 'Hack Night',
-    start_time: new Date('2025-03-19T00:00:00.000Z'), // 03.18.25 => 7:00 PM
-    end_time: new Date('2025-03-19T02:00:00.000Z'), // 03.18.25 => 9:00 PM
+    start_time: new Date(now + (24 * hour)), // 03.18.25 => 7:00 PM
+    end_time: new Date(now + (25 * hour)), // 03.18.25 => 9:00 PM
     description: `We're aggressively unstructured, meaning that Hack Night is what you want it to be. It's a social time for some, a place to work for others. It's a great place to meet other tech-minded folk.`,
     venue_id: 3, // The Rusty Nail
     category_id: 9, // Professional & Career

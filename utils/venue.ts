@@ -5,9 +5,9 @@ import {ApifyClient} from 'apify-client';
 
 
 
-export const getVenueDogFriendly = (fsqData: any, gData: any) => {
-    if (fsqData?.tastes?.includes('dog-friendly')) return true;
-    if (fsqData?.tastes?.includes('dog runs')) return true;
+export const getVenueDogFriendly = (/* fsqData: any, */ gData: any) => {
+    // if (fsqData?.tastes?.includes('dog-friendly')) return true;
+    // if (fsqData?.tastes?.includes('dog runs')) return true;
 
     if (gData?.[0]?.additionalInfo?.Pets) {
         const pets = gData[0].additionalInfo.Pets;
@@ -21,8 +21,8 @@ export const getVenueDogFriendly = (fsqData: any, gData: any) => {
     return null;
 }
 
-export const getVenueVeganFriendly = (fsqData: any, gData: any) => {
-    if (fsqData?.features?.attributes?.vegan_diet) return true;
+export const getVenueVeganFriendly = (/* fsqData: any, */ gData: any) => {
+    // if (fsqData?.features?.attributes?.vegan_diet) return true;
     if (gData?.[0]?.attributes?.vegan_diet) return true;
     if (gData?.[0]?.categories?.some((category: any) => 
         category.toLowerCase().includes('vegan'))) return true;
@@ -158,26 +158,26 @@ export const convertFSQPrice = (price: any): string | null => {
 
 
 // collect venue hashtags from various locations in api res - saves the # of occurrences for each tag and combines them across data providers, deduplicates
-export const getVenueTags = (fsqData: FSQData, gData: GoogleData[]): VenueTag[] | null => {
+export const getVenueTags = (/* fsqData: FSQData, */ gData: GoogleData[]): VenueTag[] | null => {
     let tags: Array<VenueTag> = [];
-    if (fsqData?.tastes) {
-        fsqData.tastes.forEach(taste => {
-            let exists = false;
-            for (let i = 0; i < tags.length; i++) {
-                if (tags[i].tag === taste.toLowerCase()) {
-                    tags[i].count += 1;
-                    exists = true;
-                }
-            }
-            if (!exists) {
-                tags.push({
-                    tag: taste.toLowerCase(),
-                    source: 'foursquare',
-                    count: 1
-                });
-            }
-        });
-    }
+    // if (fsqData?.tastes) {
+    //     fsqData.tastes.forEach(taste => {
+    //         let exists = false;
+    //         for (let i = 0; i < tags.length; i++) {
+    //             if (tags[i].tag === taste.toLowerCase()) {
+    //                 tags[i].count += 1;
+    //                 exists = true;
+    //             }
+    //         }
+    //         if (!exists) {
+    //             tags.push({
+    //                 tag: taste.toLowerCase(),
+    //                 source: 'foursquare',
+    //                 count: 1
+    //             });
+    //         }
+    //     });
+    // }
     if (gData?.[0]?.reviewsTags) {
         gData[0].reviewsTags.forEach(reviewTag => {
             if (reviewTag.title && reviewTag.count) {
@@ -411,16 +411,16 @@ export const getVenueReviewCount = (fsqData: FSQData, gData: GoogleData[]) => {
 }
 
 // accumulate venue images from api responses
-export const getVenueImages = (fsqData: FSQData, gData: GoogleData[]): VenueImage[] | null => {
+export const getVenueImages = (/* fsqData: FSQData, */ gData: GoogleData[]): VenueImage[] | null => {
     let images: VenueImage[] = [];
-    if (fsqData?.photos) {
-        fsqData.photos.forEach((photo) => {
-            images.push({
-                path: `${photo.prefix}original${photo.suffix}`, // fsq data requires size format inbetwen prefix and suffix
-                source: 'foursquare', // keep source to compare image quality across data providers
-            })
-        })
-    }
+    // if (fsqData?.photos) {
+    //     fsqData.photos.forEach((photo) => {
+    //         images.push({
+    //             path: `${photo.prefix}original${photo.suffix}`, // fsq data requires size format inbetwen prefix and suffix
+    //             source: 'foursquare', // keep source to compare image quality across data providers
+    //         })
+    //     })
+    // }
 
     // do the same with gData
     if (gData?.[0]?.imageUrl) {
